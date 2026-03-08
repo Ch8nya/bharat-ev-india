@@ -3,7 +3,7 @@ services:
     name: bharat-ev
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build && npm run db:push && node --env-file=.env simple-import.js
+    buildCommand: npm install --include=dev && npm run build && npm run db:push && node simple-import.js
     startCommand: npm start
     envVars:
       - key: NODE_ENV

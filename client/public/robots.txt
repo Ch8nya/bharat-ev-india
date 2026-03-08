@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Allow search engines to access the sitemap
+Sitemap: https://bharatev.replit.app/sitemap.xml
+
+# Prevent crawling of admin pages
+Disallow: /admin
+Disallow: /admin-login

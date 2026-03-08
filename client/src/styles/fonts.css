@@ -1,0 +1,32 @@
+/* Custom Font Declarations */
+@font-face {
+  font-family: 'StyreneA';
+  src: url('/fonts/StyreneAWeb.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'StyreneB';
+  src: url('/fonts/StyreneBWebRegular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'StyreneB';
+  src: url('/fonts/StyreneBWebMedium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tiempos';
+  src: url('/fonts/TiemposText.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}

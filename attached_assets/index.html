@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EV Database Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { accent: { DEFAULT: '#6366f1', hover: '#4f46e5' } },
+                    gridTemplateColumns: { 'auto-fill-100': 'repeat(auto-fill, minmax(100px, 1fr))' }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .pin-col { position: sticky; left: 0; z-index: 10; background: inherit; }
+        .pin-col-2 { position: sticky; left: 150px; z-index: 10; background: inherit; }
+        .pin-col-3 { position: sticky; left: 300px; z-index: 10; background: inherit; border-right: 1px solid #e5e7eb; }
+        tr:hover .pin-col, tr:hover .pin-col-2, tr:hover .pin-col-3 { background-color: #f9fafb; }
+        .input-base { width: 100%; border: 1px solid #d1d5db; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.875rem; outline: none; transition: border 0.2s; }
+        .input-base:focus { border-color: #6366f1; box-shadow: 0 0 0 1px #6366f1; }
+        .form-group { margin-bottom: 1rem; }
+        .form-label { display: block; font-size: 0.75rem; font-weight: 500; color: #4b5563; margin-bottom: 0.25rem; }
+        .form-group.inline { position: relative; }
+        .form-group.inline .unit { position: absolute; right: 1rem; top: 1.75rem; font-size: 0.75rem; color: #9ca3af; pointer-events: none; }
+    </style>
+</head>
+<body class="h-screen flex flex-col bg-gray-50 text-gray-800 font-sans overflow-hidden">
+
+    <header class="h-14 flex items-center justify-between px-6 bg-white border-b border-gray-200 shrink-0 z-20 shadow-sm">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-bold tracking-tight text-gray-900">⚡ EV Data</h1>
+        </div>
+        <div class="flex items-center gap-3">
+            <div id="global-filters" class="hidden items-center gap-2">
+                <input type="text" id="global-search" placeholder="Search variants globally..." class="w-64 input-base py-1.5 text-xs">
+                <select id="filter-drive" class="input-base py-1.5 w-auto text-xs"><option value="">All Drives</option><option>AWD</option><option>RWD</option><option>FWD</option></select>
+                <select id="filter-body" class="input-base py-1.5 w-auto text-xs"><option value="">All Styles</option><option>SUV</option><option>Sedan</option><option>Hatchback</option><option>Coupe</option><option>MPV</option><option>Pickup</option></select>
+                <select id="filter-battery" class="input-base py-1.5 w-auto text-xs"><option value="">All Batteries</option><option>NCM</option><option>NCA</option><option>LFP</option><option>NMCA</option></select>
+            </div>
+            <button onclick="UI.toggleAllVariants()" id="btn-toggle-view" class="px-3 py-1.5 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-semibold rounded-md transition shadow-sm ml-2">
+                Show All Variants View
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden relative w-full">
+        <!-- Panels -->
+        <div id="col-mfg" class="w-1/5 min-w-[200px] border-r border-gray-200 flex flex-col bg-white">
+            <div class="p-3 border-b border-gray-100 flex-shrink-0 bg-gray-50">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider">Makers</h2>
+                    <button onclick="UI.openForm('mfg')" class="text-accent hover:bg-indigo-100 p-1 rounded transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg></button>
+                </div>
+                <input type="text" id="search-mfg" placeholder="Filter..." class="input-base py-1 t-xs">
+                <div id="count-mfg" class="text-[10px] text-gray-500 mt-1 pl-1"></div>
+            </div>
+            <div id="list-mfg" class="flex-1 overflow-y-auto p-2 space-y-1 bg-white"></div>
+        </div>
+
+        <div id="col-models" class="w-1/4 min-w-[280px] border-r border-gray-200 flex flex-col bg-gray-50">
+            <div class="p-3 border-b border-gray-200 flex-shrink-0 bg-white">
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider">Models</h2>
+                    <button id="btn-add-model" onclick="UI.openForm('model')" class="text-accent hover:bg-indigo-100 p-1 rounded transition disabled:opacity-50"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg></button>
+                </div>
+                <input type="text" id="search-models" placeholder="Filter..." class="input-base py-1 t-xs" disabled>
+                <div id="count-models" class="text-[10px] text-gray-500 mt-1 pl-1"></div>
+            </div>
+            <div id="list-models" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+        </div>
+
+        <div id="col-vars" class="flex-1 flex flex-col bg-white border-gray-200 overflow-hidden relative">
+            <div class="p-3 border-b border-gray-200 flex-shrink-0 bg-white flex justify-between items-center shadow-sm z-10 w-full">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wider" id="title-vars">Variants</h2>
+                    <div id="count-vars" class="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded"></div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="text" id="search-vars" placeholder="Search variants locally..." class="input-base py-1 w-48 text-xs" disabled>
+                    <button id="btn-add-var" onclick="UI.openForm('var')" class="text-white bg-accent hover:bg-accent-hover px-2.5 py-1 text-xs font-semibold rounded shadow-sm disabled:opacity-50 flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Add</button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-auto bg-white relative">
+                <table class="w-full text-left text-xs whitespace-nowrap border-collapse min-w-max">
+                    <thead class="text-gray-500 bg-gray-50 sticky top-0 z-20 shadow-sm" id="table-head">
+                        <!-- Headers injected -->
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 text-gray-800" id="table-body">
+                        <!-- Data injected -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Slide Panel -->
+    <div id="overlay" class="fixed inset-0 bg-black/20 z-40 hidden" onclick="UI.closeForm()"></div>
+    <div id="side-panel" class="fixed right-0 top-0 h-full w-[400px] max-w-[90vw] bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col border-l border-gray-200">
+        <div class="p-4 border-b border-gray-100 flex items-center justify-between shrink-0 bg-gray-50 shadow-sm">
+            <h3 id="panel-title" class="text-base font-bold text-gray-800 tracking-tight">Add Form</h3>
+            <button onclick="UI.closeForm()" class="text-gray-400 hover:text-gray-900 transition"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6" id="panel-body"></div>
+        <div class="p-4 border-t border-gray-100 bg-gray-50 shrink-0 flex justify-end gap-2">
+            <button onclick="UI.closeForm()" class="px-4 py-2 text-xs font-semibold text-gray-600 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 hover:text-gray-900 transition">Cancel</button>
+            <button onclick="UI.saveForm()" class="px-4 py-2 text-xs font-semibold text-white bg-accent hover:bg-accent-hover focus:ring focus:ring-indigo-300 rounded shadow-sm transition">Save Data (Enter)</button>
+        </div>
+    </div>
+
+    <!-- Toast Confirmation for Delete -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 translate-y-[200%] transition-transform duration-300 bg-gray-900 text-white px-5 py-3 rounded-lg shadow-2xl z-50 flex items-center gap-4 border border-gray-800">
+        <span id="toast-msg" class="text-sm">Are you sure?</span>
+        <div class="flex items-center gap-2 border-l border-gray-700 pl-3">
+            <button onclick="UI.cancelDelete()" class="text-gray-400 hover:text-white text-sm font-semibold transition">Cancel</button>
+            <button onclick="UI.confirmDelete()" class="text-red-400 hover:text-red-300 text-sm font-bold transition">Confirm Delete</button>
+        </div>
+    </div>
+
+    <script>
+        // Data & State
+        const API_URL = '/api';
+        const State = {
+            mfg: [], models: [], vars: [],
+            selectedMfg: null, selectedModel: null,
+            isAllView: false, pendingDelete: null,
+            formContext: null, formOriginalData: null
+        };
+
+        const COL_MAP = {
+            mfg: ['Manufacturer', 'Country'],
+            models: ['Manufacturer', 'Model Name', 'Body Style', 'Boot Space Ltrs', 'Start Year', 'End Year', 'Image Link'],
+            vars: ['Manufacturer Name', 'Model Name', 'Variant Name', 'Battery Type', 'Drive Type', 'Battery Capacity', 'Useable Capacity', 'Warranty Years', 'Warranty Kms', 'Official Range', 'Range Rating System', 'Real Range', 'Efficiency', 'Horsepower', 'Torque', '0-100', 'Top speed', 'Weight', 'Fast Charging DC KW', '10-80 time', 'v2l output kw AC', 'price (in lakhs)', 'view_count']
+        };
+
+        const DROPDOWNS = {
+            'Body Style': ['SUV', 'Sedan', 'Hatchback', 'Coupe', 'MPV', 'Pickup'],
+            'Battery Type': ['NCM', 'NCA', 'LFP', 'NMCA', 'Solid State'],
+            'Drive Type': ['AWD', 'RWD', 'FWD'],
+            'Range Rating System': ['WLTP', 'ARAI', 'EPA', 'NEDC', 'CLTC']
+        };
+
+        const UNITS = {
+            'Boot Space Ltrs': 'L', 'Battery Capacity': 'kWh', 'Useable Capacity': 'kWh',
+            'Warranty Years': 'Yrs', 'Warranty Kms': 'km', 'Official Range': 'km', 'Real Range': 'km',
+            'Efficiency': 'Wh/km', 'Horsepower': 'bhp', 'Torque': 'Nm', '0-100': 's', 
+            'Top speed': 'km/h', 'Weight': 'kg', 'Fast Charging DC KW': 'kW', '10-80 time': 'mins',
+            'v2l output kw AC': 'kW'
+        };
+
+        // Network
+        async function fetchData() {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                State.mfg = data.manufacturers || [];
+                State.models = data.models || [];
+                State.vars = data.variants || [];
+                UI.renderMfg();
+                UI.renderModels();
+                UI.renderVars();
+            } catch (e) { console.error("Data load failed", e); }
+        }
+
+        async function apiCall(path, method, body) {
+            try {
+                const res = await fetch(API_URL + path, {
+                    method, headers: {'Content-Type': 'application/json'},
+                    body: body ? JSON.stringify(body) : null
+                });
+                if (!res.ok) {
+                    const err = await res.json(); 
+                    alert("Error: " + (err.detail || res.statusText));
+                    return false;
+                }
+                return true;
+            } catch(e) { alert("Network Error"); return false; }
+        }
+
+        // UI Engine
+        const UI = {
+            toastTimer: null,
+            init() {
+                // Attach listeners
+                ['search-mfg', 'search-models', 'search-vars', 'global-search'].forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => {
+                        if(id === 'search-mfg') UI.renderMfg();
+                        if(id === 'search-models') UI.renderModels();
+                        if(id === 'search-vars' || id === 'global-search') UI.renderVars();
+                    });
+                });
+                ['filter-drive', 'filter-body', 'filter-battery'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', UI.renderVars);
+                });
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') UI.closeForm();
+                    if (e.key === 'Enter' && State.formContext && !e.shiftKey) { e.preventDefault(); UI.saveForm(); }
+                });
+                fetchData();
+            },
+
+            // Renders
+            renderMfg() {
+                const term = document.getElementById('search-mfg').value.toLowerCase();
+                const list = document.getElementById('list-mfg');
+                const filtered = State.mfg.filter(m => !term || m.Manufacturer.toLowerCase().includes(term));
+                
+                document.getElementById('count-mfg').innerText = `${filtered.length} makers`;
+                list.innerHTML = filtered.map(m => `
+                    <div class="px-3 py-2 border rounded-md cursor-pointer transition flex justify-between items-center group ${State.selectedMfg === m.Manufacturer ? 'bg-indigo-50 border-accent' : 'bg-white border-gray-200 hover:border-indigo-300'}"
+                         onclick="UI.selectMfg('${escapeHtml(m.Manufacturer)}')">
+                        <div>
+                            <div class="font-semibold text-sm ${State.selectedMfg === m.Manufacturer ? 'text-accent' : 'text-gray-800'}">${escapeHtml(m.Manufacturer)}</div>
+                            <div class="text-[10px] text-gray-500">${escapeHtml(m.Country)}</div>
+                        </div>
+                        <div class="hidden group-hover:flex gap-1">
+                            <button onclick="event.stopPropagation(); UI.openForm('mfg', '${escapeHtml(m.Manufacturer)}')" class="p-1 text-gray-400 hover:text-accent"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                            <button onclick="event.stopPropagation(); UI.requestDelete('mfg', '${escapeHtml(m.Manufacturer)}')" class="p-1 text-gray-400 hover:text-red-500"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                if (filtered.length === 0) list.innerHTML = `<div class="p-4 text-center text-xs text-gray-400 border border-dashed rounded-md mt-2">No manufacturers</div>`;
+            },
+
+            renderModels() {
+                const s = document.getElementById('search-models');
+                const list = document.getElementById('list-models');
+                document.getElementById('btn-add-model').disabled = !State.selectedMfg;
+                s.disabled = !State.selectedMfg;
+
+                if (!State.selectedMfg && !State.isAllView) {
+                    list.innerHTML = `<div class="h-32 flex items-center justify-center text-gray-400 text-xs text-center">← Select a manufacturer</div>`;
+                    document.getElementById('count-models').innerText = `Select to view models`;
+                    return;
+                }
+
+                const term = s.value.toLowerCase();
+                const filtered = State.models.filter(m => (m.Manufacturer === State.selectedMfg || State.isAllView) && (!term || m['Model Name'].toLowerCase().includes(term)));
+                
+                document.getElementById('count-models').innerText = `${filtered.length} models`;
+                list.innerHTML = filtered.map(m => `
+                    <div class="p-3 border rounded-md cursor-pointer transition flex items-center gap-3 group relative overflow-hidden ${State.selectedModel === m['Model Name'] && m.Manufacturer === State.selectedMfg ? 'bg-indigo-50 border-accent shadow-sm' : 'bg-white border-gray-200 hover:shadow-sm'}"
+                         onclick="UI.selectModel('${escapeHtml(m.Manufacturer)}', '${escapeHtml(m['Model Name'])}')">
+                        ${m['Image Link'] ? `<div class="w-16 h-10 bg-gray-100 rounded bg-cover bg-center shrink-0 border border-gray-200" style="background-image: url('${m['Image Link']}')"></div>` : `<div class="w-16 h-10 bg-gray-100 rounded flex flex-col justify-center items-center text-[8px] text-gray-400 shrink-0 border border-gray-200 font-medium">No IMG</div>`}
+                        <div class="flex-1 min-w-0 pr-12">
+                            <div class="font-semibold text-sm truncate ${State.selectedModel === m['Model Name'] ? 'text-accent' : 'text-gray-900'}">${escapeHtml(m['Model Name'])}</div>
+                            <div class="text-[10px] text-gray-500 font-medium">${m['Start Year'] ? m['Start Year']+'-'+(m['End Year']||'On') : m['Body Style'] || 'Unknown style'} • ${escapeHtml(m.Manufacturer)}</div>
+                        </div>
+                        <div class="absolute right-2 top-1/2 -translate-y-1/2 hidden group-hover:flex gap-1 bg-white/90 p-1 rounded-md shadow-sm backdrop-blur-sm border border-gray-100">
+                            <button onclick="event.stopPropagation(); UI.openForm('model', {m: '${escapeHtml(m.Manufacturer)}', model: '${escapeHtml(m['Model Name'])}'})" class="p-1 text-gray-500 hover:bg-gray-100 hover:text-accent rounded"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                            <button onclick="event.stopPropagation(); UI.requestDelete('model', {m: '${escapeHtml(m.Manufacturer)}', model: '${escapeHtml(m['Model Name'])}'})" class="p-1 text-gray-500 hover:bg-red-50 hover:text-red-500 rounded"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                if (filtered.length === 0 && State.selectedMfg) list.innerHTML = `<div class="p-4 text-center text-xs text-gray-400 border border-dashed rounded-md mt-2">No models found</div>`;
+            },
+
+            renderVars() {
+                const s = document.getElementById('search-vars');
+                const tbody = document.getElementById('table-body');
+                const thead = document.getElementById('table-head');
+                const btnAdd = document.getElementById('btn-add-var');
+                
+                btnAdd.disabled = (!State.isAllView && !State.selectedModel);
+                s.disabled = (!State.isAllView && !State.selectedModel);
+
+                if (!State.isAllView && !State.selectedModel) {
+                    thead.innerHTML = '';
+                    tbody.innerHTML = `<tr><td class="p-10 text-center text-gray-400 text-sm">← Select a model to view variants</td></tr>`;
+                    document.getElementById('count-vars').innerText = `Select model`;
+                    return;
+                }
+
+                // Filtering logic
+                let filtered = State.vars;
+                if (!State.isAllView) {
+                    filtered = filtered.filter(v => v['Manufacturer Name'] === State.selectedMfg && v['Model Name'] === State.selectedModel);
+                    const term = s.value.toLowerCase();
+                    if (term) filtered = filtered.filter(v => v['Variant Name'].toLowerCase().includes(term));
+                } else {
+                    const term = document.getElementById('global-search').value.toLowerCase();
+                    const filterBody = document.getElementById('filter-body').value;
+                    const filterBattery = document.getElementById('filter-battery').value;
+                    const filterDrive = document.getElementById('filter-drive').value;
+
+                    filtered = filtered.filter(v => {
+                        let match = true;
+                        if (term) match = (v['Manufacturer Name'].toLowerCase().includes(term) || v['Model Name'].toLowerCase().includes(term) || v['Variant Name'].toLowerCase().includes(term));
+                        if (match && filterDrive) match = v['Drive Type'] === filterDrive;
+                        if (match && filterBattery) match = v['Battery Type'] === filterBattery;
+                        if (match && filterBody) {
+                            // look up model
+                            let mObj = State.models.find(m => m.Manufacturer === v['Manufacturer Name'] && m['Model Name'] === v['Model Name']);
+                            if (!mObj || mObj['Body Style'] !== filterBody) match = false;
+                        }
+                        return match;
+                    });
+                }
+
+                document.getElementById('count-vars').innerText = `${filtered.length} variants`;
+
+                // Columns to show
+                const cols = COL_MAP.vars;
+                
+                // thead
+                let headHTML = '<tr>';
+                cols.forEach((col, i) => {
+                    let classes = "px-4 py-2 bg-gray-50 border-b border-gray-200 font-semibold tracking-wide whitespace-nowrap ";
+                    if(State.isAllView) {
+                        if(i===0) classes += "pin-col";
+                        if(i===1) classes += "pin-col-2";
+                        if(i===2) classes += "pin-col-3";
+                    } else {
+                        if(i===2) classes += "pin-col";
+                    }
+                    if(!State.isAllView && (i===0 || i===1)) return; // hide mfg/model in local view
+                    headHTML += `<th class="${classes}">${col}</th>`;
+                });
+                headHTML += `<th class="px-4 py-2 bg-gray-50 border-b border-gray-200 sticky right-0 w-24">Actions</th></tr>`;
+                thead.innerHTML = headHTML;
+
+                // tbody
+                tbody.innerHTML = filtered.map(v => {
+                    let mfg = v['Manufacturer Name'], mod = v['Model Name'], vn = v['Variant Name'];
+                    let rowHTML = `<tr class="hover:bg-gray-50 transition-colors group">`;
+                    cols.forEach((col, i) => {
+                        if(!State.isAllView && (i===0 || i===1)) return;
+                        
+                        let classes = "px-4 py-2.5 border-b border-gray-100 ";
+                        if(State.isAllView) {
+                            if(i===0) classes += "pin-col font-medium text-gray-900 bg-white group-hover:bg-gray-50";
+                            if(i===1) classes += "pin-col-2 font-medium text-gray-900 bg-white group-hover:bg-gray-50";
+                            if(i===2) classes += "pin-col-3 font-semibold text-accent bg-white group-hover:bg-gray-50 bg-opacity-95";
+                        } else {
+                            if(i===2) classes += "pin-col font-semibold text-accent bg-white group-hover:bg-gray-50";
+                        }
+                        
+                        let val = v[col] || '-';
+                        if (UNITS[col] && val !== '-') val += ` <span class="text-[10px] text-gray-400 font-normal ml-0.5">${UNITS[col]}</span>`;
+                        rowHTML += `<td class="${classes}">${val}</td>`;
+                    });
+                    
+                    const ident = `{m:'${escapeHtml(mfg)}', model:'${escapeHtml(mod)}', v:'${escapeHtml(vn)}'}`;
+                    
+                    rowHTML += `<td class="px-3 py-2 border-b border-gray-100 sticky right-0 bg-white group-hover:bg-gray-50 text-right z-10 border-l">
+                        <div class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="UI.openForm('var', ${ident})" class="p-1 rounded text-gray-500 hover:text-accent hover:bg-indigo-50" title="Edit"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                            <button onclick="UI.duplicateVar(${ident})" class="p-1 rounded text-gray-500 hover:text-green-600 hover:bg-green-50" title="Duplicate"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg></button>
+                            <button onclick="UI.requestDelete('var', ${ident})" class="p-1 rounded text-gray-500 hover:text-red-600 hover:bg-red-50" title="Delete"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        </div>
+                    </td></tr>`;
+                    return rowHTML;
+                }).join('');
+
+                if (filtered.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="${cols.length+1}" class="p-10 text-center text-gray-400 text-sm">No variants found matching criteria</td></tr>`;
+                }
+            },
+
+            // Interactivity
+            selectMfg(mfg) {
+                State.selectedMfg = mfg;
+                State.selectedModel = null;
+                UI.renderMfg();
+                UI.renderModels();
+                UI.renderVars();
+            },
+            selectModel(mfg, model) {
+                State.selectedMfg = mfg;
+                State.selectedModel = model;
+                UI.renderModels();
+                UI.renderVars();
+            },
+            toggleAllVariants() {
+                State.isAllView = !State.isAllView;
+                const mfg = document.getElementById('col-mfg');
+                const models = document.getElementById('col-models');
+                const btn = document.getElementById('btn-toggle-view');
+                const filters = document.getElementById('global-filters');
+                const localSearch = document.getElementById('search-vars');
+                
+                if (State.isAllView) {
+                    mfg.classList.add('hidden');
+                    models.classList.add('hidden');
+                    btn.classList.replace('bg-white', 'bg-accent');
+                    btn.classList.replace('text-gray-700', 'text-white');
+                    btn.innerText = "Exit All Variants";
+                    filters.classList.replace('hidden', 'flex');
+                    localSearch.parentElement.classList.add('hidden');
+                } else {
+                    mfg.classList.remove('hidden');
+                    models.classList.remove('hidden');
+                    btn.classList.replace('bg-accent', 'bg-white');
+                    btn.classList.replace('text-white', 'text-gray-700');
+                    btn.innerText = "Show All Variants View";
+                    filters.classList.replace('flex', 'hidden');
+                    localSearch.parentElement.classList.remove('hidden');
+                }
+                UI.renderMfg();
+                UI.renderModels();
+                UI.renderVars();
+            },
+
+            // Form Panel logic
+            openForm(type, identifier = null) {
+                State.formContext = { type, identifier };
+                const panel = document.getElementById('side-panel');
+                const overlay = document.getElementById('overlay');
+                const pb = document.getElementById('panel-body');
+                const title = document.getElementById('panel-title');
+                
+                overlay.classList.remove('hidden');
+                setTimeout(() => panel.classList.remove('translate-x-full'), 10);
+
+                let formHTML = '';
+                let data = {};
+                State.formOriginalData = null;
+
+                if (type === 'mfg') {
+                    title.innerText = identifier ? 'Edit Manufacturer' : 'New Manufacturer';
+                    if (identifier) data = State.mfg.find(m => m.Manufacturer === identifier) || {};
+                    State.formOriginalData = {...data};
+                    formHTML = COL_MAP.mfg.map(c => UI.generateInput(c, data[c])).join('');
+                } 
+                else if (type === 'model') {
+                    title.innerText = identifier ? 'Edit Model' : 'New Model';
+                    if (identifier) data = State.models.find(m => m.Manufacturer === identifier.m && m['Model Name'] === identifier.model) || {};
+                    else data = {Manufacturer: State.selectedMfg || ''};
+                    State.formOriginalData = {...data};
+                    formHTML = COL_MAP.models.map(c => UI.generateInput(c, data[c], c==='Manufacturer'?'mfg':null)).join('');
+                }
+                else if (type === 'var') {
+                    title.innerText = identifier ? 'Edit Variant' : 'New Variant';
+                    if (identifier) data = State.vars.find(v => v['Manufacturer Name'] === identifier.m && v['Model Name'] === identifier.model && v['Variant Name'] === identifier.v) || {};
+                    else data = {'Manufacturer Name': State.selectedMfg || '', 'Model Name': State.selectedModel || ''};
+                    State.formOriginalData = {...data};
+                    formHTML = COL_MAP.vars.map(c => UI.generateInput(c, data[c], c==='Manufacturer Name'?'mfg':(c==='Model Name'?'model':null))).join('');
+                }
+
+                pb.innerHTML = `<form id="active-form" onsubmit="event.preventDefault(); UI.saveForm();">${formHTML}</form>`;
+                
+                // Set up cascading behavior for variant form
+                if (type === 'var') {
+                    const elM = document.querySelector(`[name="Manufacturer Name"]`);
+                    const elMod = document.querySelector(`[name="Model Name"]`);
+                    if(elM && elMod) {
+                        elM.addEventListener('change', () => {
+                            const newMfg = elM.value;
+                            const ops = State.models.filter(m => m.Manufacturer === newMfg).map(m => m['Model Name']);
+                            elMod.innerHTML = `<option value="">Select Model...</option>` + ops.map(o => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join('');
+                        });
+                    }
+                }
+                
+                // focus first
+                setTimeout(() => {
+                    const inp = document.querySelector('#active-form input:not([readonly]), #active-form select:not([readonly])');
+                    if(inp) inp.focus();
+                }, 300);
+            },
+            closeForm() {
+                const panel = document.getElementById('side-panel');
+                const overlay = document.getElementById('overlay');
+                panel.classList.add('translate-x-full');
+                setTimeout(() => { overlay.classList.add('hidden'); State.formContext = null; }, 300);
+            },
+            generateInput(col, val, cascadeType=null) {
+                val = val || '';
+                let type = 'text';
+                let el = '';
+
+                // DDLs
+                if (DROPDOWNS[col]) {
+                    const ops = ['<option value="">Select...</option>', ...DROPDOWNS[col].map(o => `<option value="${o}" ${val===o?'selected':''}>${o}</option>`)];
+                    el = `<select name="${col}" class="input-base bg-white" required>${ops.join('')}</select>`;
+                } else if (cascadeType === 'mfg') {
+                    const ops = ['<option value="">Select Manufacturer...</option>', ...State.mfg.map(m => `<option value="${m.Manufacturer}" ${val===m.Manufacturer?'selected':''}>${m.Manufacturer}</option>`)];
+                    el = `<select name="${col}" class="input-base bg-white" required>${ops.join('')}</select>`;
+                } else if (cascadeType === 'model') {
+                    // depends on mfg selection, pre-populate if val exists
+                    let mfgVal = State.formOriginalData ? State.formOriginalData['Manufacturer Name'] : (State.selectedMfg || '');
+                    let models = State.models.filter(m => m.Manufacturer === mfgVal);
+                    const ops = ['<option value="">Select Model...</option>', ...models.map(m => `<option value="${m['Model Name']}" ${val===m['Model Name']?'selected':''}>${m['Model Name']}</option>`)];
+                    el = `<select name="${col}" class="input-base bg-white" required>${ops.join('')}</select>`;
+                } else {
+                    let u = UNITS[col] ? `<span class="unit">${UNITS[col]}</span>` : '';
+                    if(['Start Year','End Year'].includes(col)) type = 'number';
+                    el = `<input type="${type}" name="${col}" value="${escapeHtml(val)}" class="input-base" ${['Manufacturer','Model Name','Variant Name'].includes(col)?'required':''}>${u}`;
+                }
+
+                return `<div class="form-group ${UNITS[col] ? 'inline' : ''}"><label class="form-label">${col}</label>${el}</div>`;
+            },
+            
+            async saveForm() {
+                const form = document.getElementById('active-form');
+                if(!form.checkValidity()) { form.reportValidity(); return; }
+                
+                const fd = new FormData(form);
+                const data = {};
+                fd.forEach((v, k) => data[k] = v);
+
+                const {type, identifier} = State.formContext;
+                const isEdit = !!identifier;
+                let success = false;
+
+                if (type === 'mfg') {
+                    if (isEdit) success = await apiCall(`/manufacturers/${encodeURIComponent(identifier)}`, 'PUT', data);
+                    else success = await apiCall(`/manufacturers`, 'POST', data);
+                    if (success && !isEdit) State.selectedMfg = data.Manufacturer; // Auto select new
+                } else if (type === 'model') {
+                    if (isEdit) success = await apiCall(`/models/edit`, 'PUT', {old_mfg: identifier.m, old_name: identifier.model, data});
+                    else success = await apiCall(`/models`, 'POST', data);
+                    if (success && !isEdit) { State.selectedMfg = data.Manufacturer; State.selectedModel = data['Model Name']; }
+                } else if (type === 'var') {
+                    if (isEdit) success = await apiCall(`/variants/edit`, 'PUT', {old_mfg: identifier.m, old_model: identifier.model, old_variant: identifier.v, data});
+                    else success = await apiCall(`/variants`, 'POST', data);
+                }
+
+                if (success) {
+                    UI.closeForm();
+                    await fetchData();
+                }
+            },
+            
+            duplicateVar(identifier) {
+                const data = State.vars.find(v => v['Manufacturer Name'] === identifier.m && v['Model Name'] === identifier.model && v['Variant Name'] === identifier.v);
+                if(!data) return;
+                // opens form with new name suggesting duplicate
+                UI.openForm('var', null);
+                setTimeout(() => {
+                    const form = document.getElementById('active-form');
+                    for(let k in data) {
+                        const el = form.querySelector(`[name="${k}"]`);
+                        if(el && k!=='Variant Name') el.value = data[k];
+                        if(el && k==='Variant Name') el.value = data[k] + ' (Copy)';
+                    }
+                }, 50);
+            },
+
+            // Delete Flow
+            requestDelete(type, identifier) {
+                State.pendingDelete = {type, identifier};
+                let msg = `Delete ${type === 'mfg' ? identifier : type === 'model' ? identifier.model : identifier.v}?`;
+                
+                if (type === 'mfg') {
+                    const mCount = State.models.filter(m => m.Manufacturer === identifier).length;
+                    const vCount = State.vars.filter(v => v['Manufacturer Name'] === identifier).length;
+                    if(mCount > 0 || vCount > 0) msg = `Delete ${identifier}? Warning: cascading delete of ${mCount} models and ${vCount} variants!`;
+                } else if (type === 'model') {
+                    const vCount = State.vars.filter(v => v['Manufacturer Name'] === identifier.m && v['Model Name'] === identifier.model).length;
+                    if(vCount > 0) msg = `Delete ${identifier.model}? Warning: cascading delete of ${vCount} variants!`;
+                }
+                
+                document.getElementById('toast-msg').innerText = msg;
+                const toast = document.getElementById('toast');
+                toast.classList.remove('translate-y-[200%]', 'opacity-0');
+                
+                if(UI.toastTimer) clearTimeout(UI.toastTimer);
+                UI.toastTimer = setTimeout(UI.cancelDelete, 6000); // 6s to confirm
+            },
+            cancelDelete() {
+                State.pendingDelete = null;
+                const toast = document.getElementById('toast');
+                toast.classList.add('translate-y-[200%]', 'opacity-0');
+            },
+            async confirmDelete() {
+                if(!State.pendingDelete) return;
+                const {type, identifier} = State.pendingDelete;
+                let success = false;
+                
+                if (type === 'mfg') success = await apiCall(`/manufacturers/${encodeURIComponent(identifier)}`, 'DELETE');
+                else if (type === 'model') success = await apiCall(`/models/delete`, 'POST', {'Manufacturer': identifier.m, 'Model Name': identifier.model});
+                else if (type === 'var') success = await apiCall(`/variants/delete`, 'POST', {'Manufacturer Name': identifier.m, 'Model Name': identifier.model, 'Variant Name': identifier.v});
+                
+                if (success) {
+                    if(type==='mfg' && State.selectedMfg===identifier) { State.selectedMfg = null; State.selectedModel = null; }
+                    if(type==='model' && State.selectedModel===identifier.model) { State.selectedModel = null; }
+                    await fetchData();
+                }
+                UI.cancelDelete();
+            }
+        };
+
+        function escapeHtml(unsafe) {
+            if(!unsafe && unsafe !== 0) return '';
+            return unsafe.toString()
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+        }
+
+        document.addEventListener('DOMContentLoaded', UI.init);
+    </script>
+</body>
+</html>
